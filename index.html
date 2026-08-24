@@ -1543,8 +1543,21 @@ body{background:var(--bg);color:#fff;font-family:'Exo 2',sans-serif;overflow:hid
     return div.innerHTML;
   }
   window.loginEnter=function(){
-    const inp=document.getElementById('login-name-input');
-    let name=(inp?inp.value.trim():'')||'Explorador';
+      const inp=document.getElementById('login-name-input');
+  let name=(inp?inp.value.trim():'')||'Explorador';
+
+  fetch('https://script.google.com/macros/s/AKfycbx01PJfBe930SFk3xW6i6u1NU8NbvnD3W3VtVDAYwnEWZ8OGImJGVfdIkqdm15PBGKyhA/exec', {
+    method:'POST',
+    mode:'no-cors',
+    headers:{
+      'Content-Type':'text/plain'
+    },
+    body:JSON.stringify({
+      nombre:name
+    })
+  });
+      
+    
     name=name.slice(0,24);
     const card=document.getElementById('login-card');
     const welcome=document.getElementById('login-welcome');
