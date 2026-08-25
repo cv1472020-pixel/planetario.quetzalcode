@@ -1586,20 +1586,30 @@ body{background:var(--bg);color:#fff;font-family:'Exo 2',sans-serif;overflow:hid
 <script>
 (function(){
   // ── Conexión con Google Sheet (Apps Script Web App) ──
-  // Guarda el nombre del login y los nombres de galaxia elegidos/creados.
+  // Guarda el nombre que la persona escribe en el login inicial.
   // El envío es "fire and forget": no bloquea la experiencia si falla o tarda.
   var SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx01PJfBe930SFk3xW6i6u1NU8NbvnD3W3VtVDAYwnEWZ8OGImJGVfdIkqdm15PBGKyhA/exec';
   window.sendToSheet = function(payload){
+    var body = JSON.stringify(Object.assign({fecha:new Date().toISOString()}, payload));
+    console.log('[sendToSheet] enviando →', body);
+    var beaconOk = false;
     try{
-      var body = JSON.stringify(Object.assign({fecha:new Date().toISOString()}, payload));
+      // Beacon primero (no bloquea, sobrevive incluso si la página se cierra justo después)
       if(navigator.sendBeacon){
         var blob = new Blob([body], {type:'text/plain;charset=UTF-8'});
-        navigator.sendBeacon(SHEET_WEBAPP_URL, blob);
-      } else {
-        fetch(SHEET_WEBAPP_URL, {method:'POST', mode:'no-cors', body:body})
-          .catch(function(e){ console.warn('No se pudo registrar en la hoja:', e); });
+        beaconOk = navigator.sendBeacon(SHEET_WEBAPP_URL, blob);
+        console.log('[sendToSheet] sendBeacon encolado:', beaconOk);
       }
-    }catch(e){ console.warn('No se pudo registrar en la hoja:', e); }
+    }catch(e){ console.warn('[sendToSheet] sendBeacon falló:', e); }
+    // fetch (no-cors) solo como respaldo: se usa únicamente si sendBeacon no
+    // existe o no pudo encolar el envío, para no duplicar la fila en la hoja.
+    if(!beaconOk){
+      try{
+        fetch(SHEET_WEBAPP_URL, {method:'POST', mode:'no-cors', body:body})
+          .then(function(){ console.log('[sendToSheet] fetch enviado (respuesta opaca por no-cors)'); })
+          .catch(function(e){ console.warn('[sendToSheet] fetch falló:', e); });
+      }catch(e){ console.warn('[sendToSheet] fetch falló:', e); }
+    }
   };
 })();
 </script>
@@ -9520,12 +9530,6 @@ function setGalaxyBtnMode(mode){
 
 function enterGalaxy(id){
   currentGalaxyId=id;
-  const cfg=GALAXIES.find(g=>g.id===id);
-  // Si es una galaxia predefinida (no editable), registramos su nombre de una vez.
-  // Si es "Nombra tu galaxia", el nombre se registra al confirmar el viaje (startGalaxyTravel).
-  if(cfg && cfg.nameable===false && window.sendToSheet){
-    window.sendToSheet({tipo:'galaxia', nombre:cfg.name, galaxiaId:cfg.id});
-  }
   closeGalaxySelectPanel();
   openGalaxyPanel();
 }
@@ -9958,9 +9962,6 @@ function startGalaxyTravel(){
   const inp=document.getElementById('gal-name-input');
   const val=(cfg.nameable!==false && inp)?inp.value.trim():'';
   galCustomName=val?val.toUpperCase():'';
-  if(cfg.nameable!==false && window.sendToSheet){
-    window.sendToSheet({tipo:'galaxia', nombre:galCustomName||'Sin nombre', galaxiaId:cfg.id});
-  }
   galIsTraveling=true;
   const ui=document.getElementById('gal-ui');
   if(ui){ui.style.opacity='0';setTimeout(()=>{ui.style.pointerEvents='none';ui.style.display='none';},1500);}
